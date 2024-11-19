@@ -11,7 +11,7 @@ def scatter_price(data : pd.DataFrame, ticker : str) -> go.Figure:
     fig.add_trace(go.Scatter(
         x=data.index,
         y=data['Close'],
-        mode='markers',
+        mode='lines',
         name='Close',
         marker=dict(color='blue',size=5)
     ))
@@ -19,7 +19,7 @@ def scatter_price(data : pd.DataFrame, ticker : str) -> go.Figure:
     fig.add_trace(go.Scatter(
         x=data.index,
         y=data['Close_predict'],
-        mode='markers',
+        mode='lines',
         name='Close_predict',
         marker=dict(color='red',size=5)
     ))
