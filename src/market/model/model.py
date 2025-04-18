@@ -45,7 +45,7 @@ class MLP_regression:
             ) -> None:
              
             self.model = MLPRegressor(
-                hidden_layer_sizes=(100,100),
+                hidden_layer_sizes=(64, 64),
                 )
 
         def get_model(self):
@@ -53,10 +53,11 @@ class MLP_regression:
         
         def fit(self,X,Y):
             X = X.reshape((len(X),-1))
-            if Y.shape[1] == 1:
-                Y = Y.ravel()
-            else : 
-                Y = Y.reshape((len(Y),-1))
+            if len(Y.shape) >= 2:
+                if Y.shape[1] == 1:
+                    Y = Y.ravel()
+                else : 
+                    Y = Y.reshape((len(Y),-1))
             self.model.fit(X,Y)
 
         def predict(self,X):            
@@ -68,9 +69,10 @@ class MLP_regression:
 
         def score(self,X,Y):
             X = X.reshape((len(X),-1))
-            if Y.shape[1] == 1:
-                Y = Y.ravel()
-            else : 
-                Y = Y.reshape((len(Y),-1))
+            if len(Y.shape) >= 2:
+                if Y.shape[1] == 1:
+                    Y = Y.ravel()
+                else : 
+                    Y = Y.reshape((len(Y),-1))
             return self.model.score(X,Y)        
 

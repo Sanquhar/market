@@ -1,19 +1,26 @@
-from data.manager import DataManager
+from data.DataManager import DataManager
 from model import preprocessing
-from routines.routine import Routine_next_day, Routine_several_days
+# from routines.routine import Routine_next_day, Routine_several_days
 from model.model import MLP_regression
-from sklearn.preprocessing import StandardScaler
-import pandas as pd
-from visualization import visualization
-from bot import bot
+# from sklearn.preprocessing import StandardScaler
+# import pandas as pd
+# from visualization import visualization
+from datetime import datetime
+import os
 
 def main() -> None:
     """
     main function
     """
 
+    data_manager = DataManager()
+    df_predicted = data_manager.get_prediction("TSLA", "MLP", datetime(2025, 4, 18))
+    print(df_predicted.iloc[-1])
+    # data_manager = DataManager()
+    # aapl = data_manager.get_stock("AAPL", datetime(2025, 4, 10, 15, 30))
+
     # routine1 = Routine_next_day()
-    routine2 = Routine_several_days()
+    # routine2 = Routine_several_days()
     # hermes = bot.bot_telegram()
 
 

@@ -1,4 +1,4 @@
-from data.manager import DataManager
+from market.data.DataManager import DataManager
 from visualization import visualization
 from model import preprocessing
 from model.model import RNN_regression, MLP_regression
