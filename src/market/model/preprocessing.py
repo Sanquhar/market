@@ -52,6 +52,7 @@ from tqdm import tqdm
 # import numpy as np
 
 def create_features(df, lookback=20):
+
     df = df.copy()
     df['return'] = df['Close'].pct_change()
     df['ma_5'] = df['Close'].rolling(window=5).mean()
@@ -62,23 +63,25 @@ def create_features(df, lookback=20):
     df.dropna(inplace=True)
     df.reset_index(drop=True, inplace=True)
 
-    features = ['Close', 'High', 'Low', 'Open', 'Volume', 'return',
+    features = ['Close', 'High', 'Low', 'Open', 'return',
                 'ma_5', 'ma_10', 'ma_20', 'volatility_5', 'volatility_20']
     # features = ['Close']
     
     data = []
-
     for i in tqdm(range(lookback, len(df)-1)):
         feature_row = df[features].iloc[i+1-lookback:i+1].values.flatten()
         target = df['Close'].iloc[i+1]
         date = df['Date'].iloc[i+1]
         data.append(np.concatenate([feature_row, [target, date]]))
-
     last_features = df[features].iloc[-lookback:].values.flatten()
-    next_date = df['Date'].iloc[-1] + timedelta(days=1)
+    next_date = df['Date'].iloc[-1]
+    if next_date.weekday() >= 4:
+        next_date += timedelta(days=7 - next_date.weekday())
+    else:
+        next_date += timedelta(days=1)
+
     next_target = None 
     data.append(np.concatenate([last_features, [next_target, next_date]]))
-    
     columns = [feature+f"_({i-lookback-1})" for i in range(1,lookback+1) for feature in features] + ['target', 'date']
     df_features = pd.DataFrame(data, columns=columns)
 

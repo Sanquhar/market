@@ -23,10 +23,7 @@ class DataManager:
         os.makedirs(self.model_dir, exist_ok=True)
         os.makedirs(self.features_dir, exist_ok=True)
 
-    def get_stock(self, ticker: str, end_datetime: datetime, precision: str = 'hour') -> pd.DataFrame:
-
-        if precision == 'hour':
-            end_datetime = end_datetime.replace(second=0, microsecond=0, minute=0)
+    def get_stock(self, ticker: str, end_datetime: datetime) -> pd.DataFrame:
 
         ticker = ticker.upper()
         date_str = end_datetime.strftime("%Y-%m-%d")
@@ -36,7 +33,9 @@ class DataManager:
         for f in os.listdir(self.data_dir):
             match = pattern.match(f)
             if match:
-                current_end_datetime =  datetime.strptime(f[len(ticker)+1: len(ticker)+11], '%Y-%m-%d') 
+                current_end_datetime =  datetime.strptime(f[len(ticker)+1: len(ticker)+11], '%Y-%m-%d')
+                print(type(current_end_datetime))
+                print(type(end_datetime)) 
                 if end_datetime <= current_end_datetime:
                     data = pd.read_csv(os.path.join(self.data_dir,f), parse_dates=["Date"])
                     return data[data["Date"] <= end_datetime]
@@ -64,10 +63,9 @@ class DataManager:
         data.to_csv(file_path, index=False)
         return data[data["Date"] <= end_datetime]
 
-    def get_features(self, ticker: str, end_datetime: datetime, lookback: int, precision: str = 'hour') -> pd.DataFrame:
+    def get_features(self, ticker: str, end_datetime: datetime, lookback: int) -> pd.DataFrame:
         
-        if precision == 'hour':
-            end_datetime = end_datetime.replace(second=0, microsecond=0, minute=0)
+        stock = self.get_stock(ticker, end_datetime)
 
         ticker = ticker.upper()
         date_str = end_datetime.strftime("%Y-%m-%d")
@@ -80,7 +78,7 @@ class DataManager:
                 current_end_datetime =  datetime.strptime(f[len(ticker)+1: len(ticker)+11], '%Y-%m-%d') 
                 if end_datetime <= current_end_datetime:
                     data = pd.read_csv(os.path.join(self.features_dir,f), parse_dates=["date"])
-                    return data[data["date"] <= end_datetime]
+                    return data[data["date"] <= end_datetime], stock
 
         # if os.path.exists(file_path):
 
@@ -96,19 +94,18 @@ class DataManager:
 
         print(f"Computing features for {ticker} data until {end_datetime}")
 
-        stock = self.get_stock(ticker, end_datetime)
         df_features = create_features(stock, lookback)
 
         if df_features.empty:
             raise ValueError(f"No features for {ticker} up to {end_datetime}")
         
         df_features.to_csv(file_path, index=False)
-        return df_features[df_features["date"] <= end_datetime]
+        return df_features[df_features["date"] <= end_datetime], stock
 
 
     def train(self, ticker: str, model_name: str, end_datetime: datetime, lookback: int =20):
 
-        df_features = self.get_features(ticker, end_datetime, lookback)
+        df_features, _ = self.get_features(ticker, end_datetime, lookback)
 
         n = len(df_features)
         pourc = int(n*.8)
@@ -136,8 +133,8 @@ class DataManager:
 
         return model, scaler
     
-    def get_prediction(self, ticker: str, model_name: str, end_datetime: datetime, lookback: int = 20) -> pd.DataFrame:
-        
+    def get_prediction(self, ticker: str, model_name: str, end_datetime: datetime, days_to_predict: int = 10, lookback: int = 20) -> pd.DataFrame:
+
         model_path = os.path.join(self.model_dir, f"{ticker}_{model_name}.pkl")
         
         if os.path.exists(model_path):
@@ -151,9 +148,39 @@ class DataManager:
             with open(model_path, "wb") as file:
                 pickle.dump((model, scaler), file)
         
-        df_features = self.get_features(ticker, end_datetime, lookback)
+        df_features, stock = self.get_features(ticker, end_datetime, lookback)
         df_predicted = df_features.copy()
+
         df_predicted["predicted"] = model.predict(scaler.transform(df_features.drop(columns=["target", "date"]).values))
         
+        stock_predicted = stock.copy()
+        
+        ##### Next_days ####
+        
+        for _ in range(days_to_predict):
+            last_line = df_predicted.iloc[-1]
+            next_date = last_line["date"]
+            next_close = last_line["predicted"]
+            next_open = last_line["Close_(-1)"]
+            next_high = max(next_close, next_open) 
+            next_low = min(next_close, next_open) 
+            next_volume = -1
+            next_line = pd.DataFrame([{
+                "Date": next_date,
+                "Close": next_close,
+                "High": next_high,
+                "Low": next_low,
+                "Open": next_open,
+                "Volume": next_volume,
+            }])
+            stock_predicted = pd.concat([stock_predicted, next_line], ignore_index=True)
+
+            stock_predicted = stock_predicted[-2*lookback:]
+            next_features = create_features(stock_predicted, lookback)
+            target_next_day = model.predict(scaler.transform(next_features.drop(columns=["target","date"])))
+            next_features["predicted"]= target_next_day
+        
+            df_predicted = pd.concat([df_predicted, next_features], ignore_index=True)
+    
         return df_predicted
 

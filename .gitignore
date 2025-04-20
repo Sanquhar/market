@@ -2,4 +2,5 @@
 /generated/
 /notebooks/
 /market/
+*/__pycache__/
 .env

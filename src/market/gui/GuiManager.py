@@ -8,17 +8,14 @@ class GuiManager:
     def __init__(self):
         self.stock_tickers = ["AAPL", "TSLA", "MSFT"]
         self.data_manager = DataManager()
-        self.stocks = dict()
-        for ticker in self.stock_tickers:
-            self.stocks[ticker] = self.data_manager.get_stock(ticker=ticker, end_datetime=datetime.datetime(2025, 4, 12))
-        
-    def plot_ticker(self, ticker: str, days_shown: int = 300) -> go.Figure:
+
+    def plot_ticker(self, ticker: str, end_datetime: datetime,  days_shown: int = 300) -> go.Figure:
         if ticker not in self.stock_tickers:
             raise ValueError(f"{ticker} is not in {self.stock_tickers}")
 
-        df = self.stocks[ticker].copy()
+        df = self.data_manager.get_stock(ticker, end_datetime)
 
-        df = df[df["Date"] >= datetime.datetime.now() - datetime.timedelta(days=days_shown)]
+        df = df[df["Date"] >= end_datetime - datetime.timedelta(days=days_shown)]
         
         fig = go.Figure(data=[go.Candlestick(
             x=df['Date'],
@@ -37,8 +34,8 @@ class GuiManager:
 
         return fig
 
-    def get_prediction(self, ticker: str, model_name: str, end_datetime: datetime, lookback: int = 20, days_shown: int = 300):
-        df_predicted = self.data_manager.get_prediction(ticker, model_name, end_datetime)
+    def get_prediction(self, ticker: str, model_name: str, end_datetime: datetime, days_to_predict: int, lookback: int = 20, days_shown: int = 300):
+        df_predicted = self.data_manager.get_prediction(ticker, model_name, end_datetime, days_to_predict)
         fig = go.Figure(data= [
             go.Scatter(arg={
                 'x':df_predicted.iloc[-days_shown:]["date"], 

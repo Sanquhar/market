@@ -1,5 +1,5 @@
 import streamlit as st
-from datetime import datetime
+from datetime import datetime, date, timedelta
 import os
 import sys
 import os
@@ -24,26 +24,23 @@ stock_choice = st.selectbox("Choose a stock", gui_manager.stock_tickers)
 # Placeholder for future plot
 st.info(f"📊 Historical data for **{stock_choice}** will be displayed here.")
 graph_placeholder = st.empty()
-fig = gui_manager.plot_ticker(stock_choice)
+end_datetime = datetime.now().replace(hour=0, second=0, minute=0, microsecond=0) + timedelta(days=1)
+
+fig = gui_manager.plot_ticker(stock_choice, end_datetime)
 graph_placeholder.plotly_chart(fig, use_container_width=True)
 
-# ========== SECTION 2 : DATA ANALYSIS ==========
-st.header("2. Data Analysis")
-
-# ========== SECTION 3 : PREDICTION SETTINGS ==========
-st.header("3. Prediction Settings")
+# ========== SECTION 2 : PREDICTION SETTINGS ==========
+st.header("2. Prediction Settings")
 
 # Model selection
 model_choice = st.selectbox("Choose prediction model", ["MLP"])
 
-# Start date for prediction
-end_datetime = st.date_input("End Datetime", datetime.today())
-end_datetime = datetime(end_datetime.year, end_datetime.month, end_datetime.day)
+days_to_predict = st.slider("How many days to predict ?" , min_value=1, max_value=30, value=1, step=1)
 
 # Predict button
 if st.button("🔮 Run prediction"):
     with st.spinner("Generating prediction..."):
-        fig = gui_manager.get_prediction(stock_choice, model_choice, end_datetime)
+        fig = gui_manager.get_prediction(stock_choice, model_choice, end_datetime, days_to_predict)
         st.success("Prediction completed ✅")
         graph_placeholder = st.empty()
         graph_placeholder.plotly_chart(fig, use_container_width=True)
