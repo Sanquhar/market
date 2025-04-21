@@ -1,4 +1,3 @@
-import os
 from market.data.DataManager import DataManager
 import plotly.graph_objects as go
 import datetime as datetime
