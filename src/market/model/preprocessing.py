@@ -2,87 +2,94 @@ import numpy as np
 from datetime import datetime, timedelta
 import pandas as pd
 from tqdm import tqdm
- 
-# def create_dataset_with_dates(df, sequence_length=10, sequence_length_output=1):
-#     X, y, y_dates = [], [], []
-#     position_variables_x = np.where(df.columns.isin(["Open","High","Low","Close"]))[0]
-#     position_variables_y = np.where(df.columns.isin(["Close"]))[0]
-
-#     for i in range(len(df) - sequence_length - sequence_length_output + 1):
-#         print("{:.2f}% performed".format(100*(i+1) / (len(df) - sequence_length - sequence_length_output + 1)),end="\r")
-#         X.append(df.iloc[i:i + sequence_length, position_variables_x].values)
-#         y.append(df.iloc[i + sequence_length:i+sequence_length+sequence_length_output, position_variables_y].values)  
-#         y_dates.append(df.index[i + sequence_length])  
-
-#     print()
-#     return np.array(X), np.array(y), np.array(y_dates)
-
-# def create_dataset_one_predict(df, sequence_length=10, last_date = None):
-
-#     position_variables_x = np.where(df.columns.isin(["Open","High","Low","Close"]))[0]
-#     position_variables_y = np.where(df.columns.isin(["Close"]))[0]
-#     X = df.iloc[-sequence_length:,position_variables_x]
-#     last_date = df.index[-1]
-
-#     return np.array(X), last_date
-
-# from datetime import datetime, timedelta
-
-# def get_next_dates(start_date, n):
-#     days = []
-#     count = 0
-#     current_day = start_date
-    
-#     while count < n:
-#         current_day += timedelta(days=1)
-        
-#         if current_day.weekday() < 5:  
-#             days.append(current_day)
-#             count += 1
-    
-#     return days
-
-# def find_closest_date(df, date_str):
-#     target_date = pd.to_datetime(date_str)
-#     target_date = target_date.tz_localize('UTC').tz_convert('America/New_York')
-#     diff = abs((df.index - target_date))
-#     return df.index[np.argmin(diff)]
-
-# import pandas as pd
-# import numpy as np
 
 def create_features(df, lookback=20):
+    """
+    This function generates features for predicting the stock's closing price 
+    from historical stock data. It calculates technical indicators such as 
+    returns, moving averages, and volatility, and then formats the data for 
+    supervised learning.
+    
+    Args:
+        df (pd.DataFrame): A DataFrame containing the stock's historical data. 
+                           It must have the following columns:
+                           - 'Date': the date of the stock data (datetime type)
+                           - 'Close': the stock's closing price
+                           - 'High': the highest price of the stock during the day
+                           - 'Low': the lowest price of the stock during the day
+                           - 'Open': the stock's opening price
+                           - 'Volume': the volume of stocks traded
+        lookback (int): The number of previous days to consider when creating the features. 
+                        Default is 20 days.
 
+    Returns:
+        pd.DataFrame: A DataFrame with generated features and the target for each date.
+                      The columns include information like returns, moving averages,
+                      volatility, and the target (closing price to predict).
+    """
+    
+    # Create a copy of the DataFrame to avoid modifying the original data
     df = df.copy()
+    
+    # Calculate daily returns
     df['return'] = df['Close'].pct_change()
+
+    # Calculate moving averages over 5, 10, and 20 days
     df['ma_5'] = df['Close'].rolling(window=5).mean()
     df['ma_10'] = df['Close'].rolling(window=10).mean()
     df['ma_20'] = df['Close'].rolling(window=20).mean()
+    
+    # Calculate volatility over 5 and 20 days
     df['volatility_5'] = df['Close'].rolling(window=5).std()
     df['volatility_20'] = df['Close'].rolling(window=20).std()
+    
+    # Drop rows with missing values (which result from the rolling calculations)
     df.dropna(inplace=True)
+    
+    # Reset the index to avoid issues after dropping rows
     df.reset_index(drop=True, inplace=True)
 
-    features = ['Close', 'High', 'Low', 'Open', 'return',
+    # List of features to include for each lookback window
+    features = ['Close', 'High', 'Low', 'Open', 'return', 
                 'ma_5', 'ma_10', 'ma_20', 'volatility_5', 'volatility_20']
-    # features = ['Close']
     
+    # List to store the formatted data for supervised learning
     data = []
+    
+    # Loop to create features for each lookback window
     for i in tqdm(range(lookback, len(df)-1)):
+        # Select the features for the 'lookback' previous days
         feature_row = df[features].iloc[i+1-lookback:i+1].values.flatten()
+        
+        # Target: the closing price of the next day
         target = df['Close'].iloc[i+1]
+        
+        # Date corresponding to the next day
         date = df['Date'].iloc[i+1]
+        
+        # Append the features and target to the data list
         data.append(np.concatenate([feature_row, [target, date]]))
+    
+    # Create the row with the features of the last 'lookback' days and the next date
     last_features = df[features].iloc[-lookback:].values.flatten()
     next_date = df['Date'].iloc[-1]
+    
+    # If the last date is a Friday (or later), predict for the following Monday
     if next_date.weekday() >= 4:
         next_date += timedelta(days=7 - next_date.weekday())
     else:
         next_date += timedelta(days=1)
-
-    next_target = None 
+    
+    # The target for the last day is unknown, so it is set to None
+    next_target = None
+    
+    # Append this last row to the data list
     data.append(np.concatenate([last_features, [next_target, next_date]]))
-    columns = [feature+f"_({i-lookback-1})" for i in range(1,lookback+1) for feature in features] + ['target', 'date']
+    
+    # Generate column names for the final DataFrame
+    columns = [feature + f"_({i-lookback-1})" for i in range(1, lookback+1) for feature in features] + ['target', 'date']
+    
+    # Create the final DataFrame with the features and target values
     df_features = pd.DataFrame(data, columns=columns)
 
     return df_features
