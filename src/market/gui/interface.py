@@ -22,7 +22,7 @@ def main():
     #  
     st.title("Stock Prediction")
     st.markdown("""
-    ### 📈 Welcome to the Stock Prediction App (by François Goybet)
+    ### 📈 Welcome to the Stock Prediction App
     """)
     st.info("""
     Start by selecting the stock you want to **view** and **predict**.  
@@ -95,5 +95,5 @@ def main():
             # Placeholder for prediction plot
             graph_placeholder = st.empty()
             graph_placeholder.plotly_chart(fig, use_container_width=True)
-            st.info("More informations will come here ...")
+            st.info("More informations coming soon...")
 
