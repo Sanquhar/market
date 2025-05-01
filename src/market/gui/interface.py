@@ -22,7 +22,7 @@ def main():
     #  
     st.title("Stock Prediction")
     st.markdown("""
-    ### 📈 Welcome to the Stock Prediction App
+    ### 📈 Welcome to the Stock Prediction App (by François Goybet)
     """)
     st.info("""
     Start by selecting the stock you want to **view** and **predict**.  
