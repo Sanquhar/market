@@ -1,4 +1,4 @@
 @echo off
 set PYTHONPATH=%cd%\src
-streamlit run .\src\market\gui\interface.py
+streamlit run run.py
 pause

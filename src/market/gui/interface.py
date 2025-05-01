@@ -95,3 +95,5 @@ def main():
             # Placeholder for prediction plot
             graph_placeholder = st.empty()
             graph_placeholder.plotly_chart(fig, use_container_width=True)
+            st.info("More informations will come here ...")
+
