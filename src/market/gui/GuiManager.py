@@ -1,6 +1,7 @@
 from market.data.DataManager import DataManager
 import plotly.graph_objects as go
 import datetime as datetime
+import pandas as pd 
 
 class GuiManager:
     """
@@ -72,7 +73,10 @@ class GuiManager:
             go.Figure: A Plotly line chart showing predicted vs actual values.
         """
 
-        df_predicted = self.data_manager.get_prediction(ticker, model_name, end_datetime, days_to_predict)
+        args = self.data_manager.get_prediction(ticker, model_name, end_datetime, days_to_predict)
+        df_predicted = args["df_predicted"]
+        model_info = args["model_info"]
+
         fig = go.Figure(data= [
             go.Scatter(arg={
                 'x':df_predicted.iloc[-days_shown:]["date"], 
@@ -97,4 +101,29 @@ class GuiManager:
             yaxis_title="Price",
             template="plotly_dark"
         )
-        return fig 
+
+
+        df_viz = df_predicted.iloc[-days_to_predict-5:][["date", "target", "predicted"]].copy()
+
+        # Rename columns
+        df_viz.rename(columns={
+            "predicted": "Predicted Close",
+            "target": "Actual Close"
+        }, inplace=True)
+
+        # Set date as index
+        df_viz.set_index("date", inplace=True)
+
+        # Format Predicted Close
+        df_viz["Predicted Close"] = df_viz["Predicted Close"].map(lambda x: f"{x:.2f} $" if pd.notnull(x) else "N/A")
+
+        # Format Actual Close, handle missing values
+        df_viz["Actual Close"] = df_viz["Actual Close"].map(
+            lambda x: f"{x:.2f} $" if pd.notnull(x) else "Not yet available"
+        )
+
+        return {
+            "fig": fig,
+            "model_info": model_info,
+            "df_predicted": df_viz,
+            } 

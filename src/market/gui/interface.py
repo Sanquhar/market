@@ -89,11 +89,17 @@ def main():
             model_choice_short = model_short_name_dict.get(model_choice_full, "MLP")
             
             # Call the prediction function with the short model name
-            fig = gui_manager.get_prediction(stock_choice, model_choice_short, end_datetime, days_to_predict)
+            args = gui_manager.get_prediction(stock_choice, model_choice_short, end_datetime, days_to_predict)
+            fig = args["fig"]
+            model_info = args["model_info"]
+            df_predicted = args["df_predicted"]
             st.success("Prediction completed ✅")
 
             # Placeholder for prediction plot
             graph_placeholder = st.empty()
             graph_placeholder.plotly_chart(fig, use_container_width=True)
+            st.markdown(f"Performance of {model_choice_full} model :")
+            st.dataframe(model_info)
+            st.markdown(f"Prediction of next {days_to_predict} day(s)")
+            st.dataframe(df_predicted)
             st.info("More informations coming soon...")
-

@@ -33,6 +33,42 @@ class DataManager:
         os.makedirs(self.model_dir, exist_ok=True)
         os.makedirs(self.features_dir, exist_ok=True)
 
+    def download_data_investpy(self, ticker, start_datetime, end_datetime):
+        print(f"[INFO] Downloading {ticker} data until {end_datetime}")
+
+        start_date = (end_datetime - pd.Timedelta(days=5_000)).strftime("%d/%m/%Y")
+        end_date = (end_datetime + pd.Timedelta(days=1)).strftime("%d/%m/%Y")
+
+        try:
+            data = investpy.get_stock_historical_data(
+                stock=ticker,
+                country="United States",
+                from_date=start_date,
+                to_date=end_date
+            )
+        except Exception as e:
+            raise ValueError(f"[ERROR] Failed to fetch data for {ticker}: {e}")
+
+        if data.empty:
+            raise ValueError(f"[ERROR] No data returned for {ticker} up to {end_datetime}")
+
+        # Standardize column names like yfinance
+        data.rename(columns={
+            'Open': 'Open',
+            'High': 'High',
+            'Low': 'Low',
+            'Close': 'Close',
+            'Volume': 'Volume'
+        }, inplace=True)
+
+        # Add 'Adj Close' same as Close (Investpy doesn't provide it)
+        data['Adj Close'] = data['Close']
+
+        # Reorder columns like yf
+        data = data[['Open', 'High', 'Low', 'Close', 'Adj Close', 'Volume']]
+
+        return data
+
     def get_stock(self, ticker: str, end_datetime: datetime) -> pd.DataFrame:
         """
         Returns historical stock data for a given ticker up to a specified end date.
@@ -207,7 +243,26 @@ class DataManager:
 
         model.fit(x_train, y_train) 
 
-        return model, x_scaler, y_scaler
+        # model info
+        rmse = model.score(x_test, y_test, y_scaler)
+        nb_trainable_parameters = model.get_nb_trainable_parameters()
+        mae = model.get_mae(x_test, y_test, y_scaler)
+        r2 = model.get_r2(x_test, y_test, y_scaler)
+        model_name = model.__class__.__name__
+        training_time = model.get_training_time()  
+        features_used = len(x_test[0])  
+
+        model_info = pd.DataFrame([{
+            "model": model_name,
+            # "rmse ($)": f"{rmse:.3f} $",
+            "mae ($)": f"{mae:.3f} $",
+            "r2 (%)": f"{r2 * 100:.2f} %",
+            "nb_trainable_parameters": nb_trainable_parameters,
+            "training_time (s)": f"{training_time:.2f} s",
+            "features_used": features_used
+        }])
+
+        return model, x_scaler, y_scaler, model_info
     
     def get_prediction(self, ticker: str, model_name: str, end_datetime: datetime, days_to_predict: int = 10, lookback: int = 20) -> pd.DataFrame:
         """
@@ -233,13 +288,13 @@ class DataManager:
         if os.path.exists(model_path):
             print("[INFO] Model already trained ! ")
             with open(model_path, "rb") as file:
-                model, x_scaler, y_scaler = pickle.load(file)
+                model, x_scaler, y_scaler, model_info = pickle.load(file)
         else : 
             print("[INFO] Need to run the model")
-            model, x_scaler, y_scaler = self.train(ticker, model_name, end_datetime, lookback)
+            model, x_scaler, y_scaler, model_info = self.train(ticker, model_name, end_datetime, lookback)
 
             with open(model_path, "wb") as file:
-                pickle.dump((model, x_scaler, y_scaler), file)
+                pickle.dump((model, x_scaler, y_scaler, model_info), file)
         
         df_features, stock = self.get_features(ticker, end_datetime, lookback)
         df_predicted = df_features.copy()
@@ -248,7 +303,6 @@ class DataManager:
         df_predicted["predicted"] = y_scaler.inverse_transform(prediction.reshape(-1, 1)).ravel()
 
         stock_predicted = stock.copy()
-        
         
         # Prediction of next days 
 
@@ -278,5 +332,8 @@ class DataManager:
             # Populate df_predicted
             df_predicted = pd.concat([df_predicted, next_features], ignore_index=True)
     
-        return df_predicted
+        return {
+            "df_predicted": df_predicted,
+            "model_info": model_info,
+        }
 
