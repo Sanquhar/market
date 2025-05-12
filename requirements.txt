@@ -1,5 +1,5 @@
 pandas
-yfinance==0.2.57
+yfinance==0.2.58
 scikit-learn
 numpy
 tensorflow
